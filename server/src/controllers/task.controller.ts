@@ -10,7 +10,7 @@ export const createTask = async (
   next: NextFunction
 ) => {
   try {
-    const { title, description, projectId, assignee } = req.body;
+    const { title, description, projectId, assigneeId } = req.body;
 
     // Check if project exists and user has access
     const projectDoc = await Project.findOne({
@@ -22,8 +22,8 @@ export const createTask = async (
       return next(new AppError('Project not found or access denied', 404));
     }
 
-    // Check if assignee is a project member
-    if (!projectDoc.members.includes(assignee)) {
+    // Check if assignee is a project member (only if assigneeId is provided)
+    if (assigneeId && !projectDoc.members.includes(assigneeId)) {
       return next(new AppError('Assignee must be a project member', 400));
     }
 
@@ -31,7 +31,7 @@ export const createTask = async (
       title,
       description,
       projectId,
-      assignee,
+      assignee: assigneeId || null,
       createdBy: req.user._id,
     });
 
@@ -124,13 +124,20 @@ export const updateTask = async (
       return next(new AppError('You do not have access to this project', 403));
     }
 
-    // If updating assignee, check if new assignee is a project member
-    if (req.body.assigneeId) {
-      if (!project.members.includes(req.body.assigneeId)) {
-        return next(new AppError('New assignee must be a project member', 400));
+    // Handle assignee update
+    if ('assigneeId' in req.body) {
+      // If assigneeId is null, remove the assignee
+      if (req.body.assigneeId === null) {
+        req.body.assignee = null;
+      } else if (req.body.assigneeId) {
+        // Check if new assignee is a project member
+        if (!project.members.includes(req.body.assigneeId)) {
+          return next(
+            new AppError('New assignee must be a project member', 400)
+          );
+        }
+        req.body.assignee = req.body.assigneeId;
       }
-      // Convert assigneeId to assignee for the database
-      req.body.assignee = req.body.assigneeId;
       delete req.body.assigneeId;
     }
 

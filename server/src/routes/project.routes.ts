@@ -14,6 +14,7 @@ import {
   getProjectMembers,
   createTask,
 } from '../controllers/project.controller';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -53,8 +54,11 @@ router.post(
       .notEmpty()
       .withMessage('Task description is required'),
     body('assigneeId')
-      .optional()
-      .isMongoId()
+      .optional({ nullable: true })
+      .custom((value) => {
+        if (value === null) return true;
+        return mongoose.Types.ObjectId.isValid(value);
+      })
       .withMessage('Invalid assignee ID'),
   ],
   validateRequest,
